@@ -75,6 +75,7 @@ body{
   box-shadow:0 0 6px #6fd66f;
   animation:pulse 2s ease-in-out infinite;
 }
+.dot.dot-off{ background:#a6753a; box-shadow:0 0 6px #a6753a; }
 @media (prefers-reduced-motion: reduce){ .dot{animation:none;} }
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
 h1{
@@ -95,7 +96,7 @@ h1{
   padding:18px;
   margin-bottom:18px;
   position:relative;
-  overflow:hidden;
+  overflow:visible;
 }
 .terminal.scanning::after{
   content:"";
@@ -106,7 +107,7 @@ h1{
 }
 @keyframes scanline{
   0%{transform:translateY(0);}
-  100%{transform:translateY(220px);}
+  100%{transform:translateY(70px);}
 }
 @media (prefers-reduced-motion: reduce){ .terminal.scanning::after{animation:none; opacity:0.4;} }
 
@@ -119,7 +120,7 @@ h1{
   margin-bottom:8px;
 }
 
-.search-row{display:flex;gap:8px;}
+.search-row{display:flex;gap:8px;position:relative;}
 input[type=text]{
   flex:1;
   background:var(--bg-alt);
@@ -130,7 +131,9 @@ input[type=text]{
   padding:11px 12px;
   border-radius:4px;
   outline:none;
+  width:100%;
 }
+input[type=text]:disabled{opacity:0.5;}
 input[type=text]:focus-visible{
   border-color:var(--brass-bright);
   box-shadow:0 0 0 2px rgba(227,168,92,0.25);
@@ -147,6 +150,7 @@ button{
   cursor:pointer;
   padding:11px 16px;
   transition:background 0.15s, border-color 0.15s, transform 0.05s;
+  white-space:nowrap;
 }
 button:active{transform:translateY(1px);}
 button:focus-visible{outline:2px solid var(--brass-bright);outline-offset:2px;}
@@ -165,21 +169,36 @@ button:focus-visible{outline:2px solid var(--brass-bright);outline-offset:2px;}
 }
 .btn-ghost:hover{border-color:var(--border-bright); background:var(--panel-alt);}
 
-.divider-row{
-  display:flex;align-items:center;gap:10px;
-  margin:14px 0;color:var(--text-dim);
-  font-family:'IBM Plex Mono', monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;
+/* Autocomplete dropdown */
+.suggest-box{
+  position:absolute;
+  top:calc(100% + 4px);
+  left:0;
+  right:96px;
+  background:var(--bg-alt);
+  border:1px solid var(--border-bright);
+  border-radius:4px;
+  z-index:20;
+  max-height:240px;
+  overflow-y:auto;
+  display:none;
 }
-.divider-row::before,.divider-row::after{content:"";flex:1;height:1px;background:var(--border);}
+.suggest-box.open{display:block;}
+.suggest-item{
+  padding:9px 12px;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:13px;
+  cursor:pointer;
+  border-bottom:1px solid var(--border);
+}
+.suggest-item:last-child{border-bottom:none;}
+.suggest-item:hover, .suggest-item.active{background:var(--panel-alt); color:var(--brass-bright);}
 
-.photo-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-#photoInput{display:none;}
-.photo-preview{
-  font-family:'IBM Plex Mono', monospace;font-size:12px;color:var(--text-dim);
-}
-.thumb{
-  width:38px;height:38px;object-fit:cover;border-radius:4px;border:1px solid var(--border);
-  vertical-align:middle;margin-right:8px;
+.status-line{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11.5px;
+  color:var(--text-dim);
+  margin-top:10px;
 }
 
 /* ---------- History chips ---------- */
@@ -212,6 +231,7 @@ button:focus-visible{outline:2px solid var(--brass-bright);outline-offset:2px;}
   border-left:2px solid var(--border);
   padding-left:10px;margin:0 0 16px;line-height:1.5;
 }
+.source-note a{color:var(--brass-bright);}
 
 .card{
   background:var(--panel);
@@ -236,326 +256,476 @@ button:focus-visible{outline:2px solid var(--brass-bright);outline-offset:2px;}
 }
 .stat-label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;display:block;}
 .stat-value{font-size:15px;color:var(--brass-bright);font-weight:600;}
-.how-to{font-size:13.5px;line-height:1.5;margin-top:10px;color:var(--tan);}
+.how-to{font-size:13px;line-height:1.6;margin-top:10px;color:var(--tan);}
 .how-to b{color:var(--brass-bright);font-weight:600;}
-.note-line{font-size:12px;color:var(--text-dim);margin-top:6px;font-style:italic;}
+.how-to .spawn-loading{color:var(--text-dim);font-style:italic;}
 
 .empty, .error, .loading{
   text-align:center;color:var(--text-dim);font-size:13.5px;padding:30px 10px;
 }
 .error{color:#e08a6e;}
-.raw-fallback{
-  white-space:pre-wrap;font-family:'IBM Plex Mono', monospace;font-size:12px;
-  background:var(--bg-alt);border:1px solid var(--border);border-radius:4px;padding:12px;
-}
 
 .footer-note{
   text-align:center;font-size:11.5px;color:var(--text-dim);margin-top:24px;
   font-family:'IBM Plex Mono', monospace;
+  line-height:1.6;
 }
+.footer-note a{color:var(--brass-bright);}
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <div class="header">
-    <div class="eyebrow"><span class="dot"></span> BUSCA AO VIVO · PALWORLD.GG + WEB</div>
+    <div class="eyebrow"><span class="dot" id="statusDot"></span> <span id="statusText">CARREGANDO BANCO DE DADOS...</span></div>
     <h1>Scanner de Drops</h1>
-    <div class="subtitle">Digite o nome de um item ou mande uma foto. O scanner vasculha a web em tempo real pra achar quem dropa, quanto, com que chance — e como conseguir aquele Pal.</div>
+    <div class="subtitle">Digite o nome de um item pra ver quais Pals dropam ele, quanto, com que chance — e como conseguir aquele Pal. 100% offline depois de carregar, sem chave de API.</div>
   </div>
 
-  <div class="terminal" id="terminal">
+  <div class="terminal scanning" id="terminal">
     <div class="field-label">Nome do item</div>
     <div class="search-row">
-      <input type="text" id="itemInput" placeholder="ex: Coralum Ore, Dog Coin, Couro..." autocomplete="off">
-      <button class="btn-primary" id="searchBtn">Escanear</button>
+      <input type="text" id="itemInput" placeholder="carregando..." autocomplete="off" disabled>
+      <button class="btn-primary" id="searchBtn" disabled>Escanear</button>
+      <div class="suggest-box" id="suggestBox"></div>
     </div>
-
-    <div class="divider-row">ou</div>
-
-    <div class="field-label">Foto do item</div>
-    <div class="photo-row">
-      <button class="btn-ghost" id="photoBtn">📷 Enviar foto</button>
-      <input type="file" id="photoInput" accept="image/*">
-      <span class="photo-preview" id="photoPreview"></span>
-    </div>
+    <div class="status-line" id="statusLine">Baixando dados de Pals e itens...</div>
   </div>
 
   <div class="history" id="historyRow"></div>
 
   <div id="output"></div>
 
-  <div class="footer-note">Os dados vêm de buscas na web em tempo real (palworld.gg e fontes cruzadas) — nunca de uma base fixa. Sempre confira in-game se a taxa parecer estranha, patches mudam isso o tempo todo.</div>
+  <div class="footer-note" id="footerNote"></div>
 
 </div>
 
 <script>
+const PALDEX_PALS_URL = 'https://raw.githubusercontent.com/blaynem/paldex/main/data-provider/baked-data/pt-BR/pals.json';
+const PALDEX_MAPPINGS_URL = 'https://raw.githubusercontent.com/blaynem/paldex/main/data-provider/baked-data/pt-BR/item_name_mappings.json';
+const PALDEX_MAPLOC_BASE = 'https://raw.githubusercontent.com/blaynem/paldex/main/data-provider/baked-data/map_locations/';
+const PALCALC_DB_URL = 'https://raw.githubusercontent.com/tylercamp/palcalc/main/PalCalc.Model/db.json';
+const PALWORLD_GG_SEARCH = 'https://palworld.gg/?s=';
+
 const ELEMENT_COLORS = {
-  'Fogo':'#e2572b','Água':'#3b82c4','Planta':'#4f9d4a','Elétrico':'#e8c94a',
-  'Gelo':'#7fd8e0','Terra':'#a9743b','Trevas':'#7a5ea8','Dragão':'#5a4fcf','Neutro':'#9aa0a6'
+  'Fogo':'#e2572b','Água':'#3b82c4','Grama':'#4f9d4a','Elétrico':'#e8c94a',
+  'Gelo':'#7fd8e0','Terra':'#a9743b','Escuridão':'#7a5ea8','Dracônico':'#5a4fcf','Não elemental':'#9aa0a6'
 };
+const RARITY_ORDER = ['Comum','Incomum','Raro','Épico','Lendário'];
 const RARITY_COLORS = {
   'Comum':'var(--rar-comum)','Incomum':'var(--rar-incomum)','Raro':'var(--rar-raro)',
   'Épico':'var(--rar-epico)','Lendário':'var(--rar-lendario)'
 };
 
-const SYSTEM_PROMPT = `Você é um assistente RÁPIDO e OBJETIVO de dados do jogo Palworld, integrado a um app de busca de drops de itens. Velocidade importa tanto quanto precisão — o usuário está esperando na tela.
+function rarityTier(r){
+  if (r >= 20) return 'Lendário';
+  if (r >= 7) return 'Épico';
+  if (r >= 4) return 'Raro';
+  if (r >= 2) return 'Incomum';
+  return 'Comum';
+}
 
-ESTRATÉGIA DE BUSCA (siga à risca, não pule etapas mas também não exceda):
-1. Primeira busca: sempre no formato "<nome do item> site:palworld.gg" (ou o nome traduzido/corrigido do item). A página do item no palworld.gg já lista todos os Pals que o dropam, com quantidade e taxa — geralmente ISSO SOZINHO já basta.
-2. Se a primeira busca já trouxe os Pals com quantidade e taxa, PARE de pesquisar e responda.
-3. Só faça uma segunda busca se a primeira não identificou o item ou não trouxe nenhum Pal associado. Nunca faça mais de 3 buscas no total, mesmo que os dados pareçam incompletos — responda com o que conseguiu.
-4. NÃO cruze múltiplos sites (paldb.cc, wiki.gg, game8, fextralife) por padrão — isso é lento. Só faça isso se a primeira busca não retornar nada útil.
+function normalize(str){
+  return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
 
-TAREFA: dado um nome de item (texto) ou uma imagem contendo um item do Palworld, determine:
-1. O nome canônico do item (normalize/traduza se o usuário escreveu em português, com erro de digitação, ou apelido).
-2. Quais Pals dropam esse item ao morrer/serem abatidos ou capturados, com quantidade e taxa de chance (%).
-3. Como conseguir/encontrar aquele Pal (região do mapa, faixa de nível — bem resumido).
-
-REGRAS:
-- Máximo de 5 Pals no resultado (os mais relevantes/comuns primeiro).
-- Se você não encontrar a quantidade ou a taxa exata na fonte, escreva literalmente "não informado" nesse campo — NUNCA invente ou chute um número, e não gaste uma busca extra só atrás disso.
-- Se o item não existir ou nenhum Pal dropar ele (item só craftável/comprado/coletado, por exemplo), retorne "pals" como lista vazia e explique em "source_note".
-- Seja telegráfico: "how_to_obtain" deve ter no máximo 12 palavras.
-- Responda em português do Brasil.
-- Sua ÚLTIMA mensagem de texto deve conter APENAS um JSON válido — sem markdown, sem crases, sem texto antes ou depois, sem comentários.
-
-FORMATO JSON EXATO:
-{
-  "query": "nome do item identificado",
-  "pals": [
-    {
-      "name": "Nome do Pal",
-      "element": "um de: Fogo, Água, Planta, Elétrico, Gelo, Terra, Trevas, Dragão, Neutro",
-      "rarity": "um de: Comum, Incomum, Raro, Épico, Lendário",
-      "quantity": "ex: 2-3, ou 'não informado'",
-      "chance": "ex: 100%, ou 'não informado'",
-      "how_to_obtain": "frase bem curta com região/nível",
-      "notes": "observação curta ou string vazia"
-    }
-  ],
-  "source_note": "frase curta sobre confiabilidade/fonte dos dados"
-}`;
-
+// --- DOM refs ---
 const terminal = document.getElementById('terminal');
 const output = document.getElementById('output');
 const itemInput = document.getElementById('itemInput');
 const searchBtn = document.getElementById('searchBtn');
-const photoBtn = document.getElementById('photoBtn');
-const photoInput = document.getElementById('photoInput');
-const photoPreview = document.getElementById('photoPreview');
+const suggestBox = document.getElementById('suggestBox');
+const statusLine = document.getElementById('statusLine');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
 const historyRow = document.getElementById('historyRow');
+const footerNote = document.getElementById('footerNote');
 
-let pendingImage = null; // {media_type, data, previewUrl}
+// --- Dataset state ---
+let dropIndex = {};          // itemDisplayName (pt-BR) -> [{palName, palDevName, element, rarityTier, min, max, rate}]
+let allItemNamesSet = new Set(); // every known item display name (droppable or not) for "did you mean"
+let droppableItemNames = []; // sorted list of item display names that DO have droppers (for autocomplete)
+let levelRanges = {};        // palDevName -> {min, max}
+let datasetReady = false;
 
-photoBtn.addEventListener('click', () => photoInput.click());
-
-photoInput.addEventListener('change', async () => {
-  const file = photoInput.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    const result = reader.result;
-    const base64Data = result.split(',')[1];
-    pendingImage = { media_type: file.type || 'image/jpeg', data: base64Data, previewUrl: result };
-    photoPreview.innerHTML = `<img class="thumb" src="${result}" alt="preview"> foto pronta — clique em Escanear`;
-  };
-  reader.readAsDataURL(file);
-});
-
-searchBtn.addEventListener('click', () => runScan());
-itemInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') runScan(); });
-
-function normalizeKey(text){
-  return 'scan:' + text.trim().toLowerCase().replace(/\s+/g,'_').slice(0,150);
+async function fetchJson(url){
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' em ' + url);
+  return res.json();
 }
 
-async function loadHistory(){
+async function loadDataset(){
   try{
-    const res = await window.storage.list('scan:', false);
-    if (!res || !res.keys) return;
-    historyRow.innerHTML = '';
-    res.keys.slice(0,15).forEach(k => {
-      const label = k.replace('scan:','').replace(/_/g,' ');
-      const chip = document.createElement('div');
-      chip.className = 'chip';
-      chip.textContent = label;
-      chip.addEventListener('click', async () => {
-        try{
-          const stored = await window.storage.get(k, false);
-          if (stored && stored.value){
-            const data = JSON.parse(stored.value);
-            renderResults(data, true);
-            itemInput.value = data.query || label;
-          }
-        }catch(e){ /* key vanished, ignore */ }
+    const [pals, mappings, palcalc] = await Promise.all([
+      fetchJson(PALDEX_PALS_URL),
+      fetchJson(PALDEX_MAPPINGS_URL),
+      fetchJson(PALCALC_DB_URL).catch(() => null) // enrichment only, non-fatal if it fails
+    ]);
+
+    const devToItem = mappings.dev_name_to_item || {};
+
+    // Level ranges (fresh roster) — matched later by InternalName
+    if (palcalc && Array.isArray(palcalc.Pals)){
+      palcalc.Pals.forEach(p => {
+        if (p.InternalName){
+          levelRanges[p.InternalName] = { min: p.MinWildLevel, max: p.MaxWildLevel };
+        }
       });
-      historyRow.appendChild(chip);
-    });
-  }catch(e){ /* storage not available yet, ignore silently */ }
-}
-loadHistory();
-
-async function runScan(forceRefresh=false){
-  const text = itemInput.value.trim();
-  if (!text && !pendingImage){
-    output.innerHTML = `<div class="error">Digite um item ou anexe uma foto antes de escanear.</div>`;
-    return;
-  }
-
-  const cacheKey = text ? normalizeKey(text) : null;
-  if (cacheKey && !forceRefresh && !pendingImage){
-    try{
-      const stored = await window.storage.get(cacheKey, false);
-      if (stored && stored.value){
-        const data = JSON.parse(stored.value);
-        renderResults(data, true);
-        return;
-      }
-    }catch(e){ /* no cache yet, continue to live fetch */ }
-  }
-
-  setLoading(true);
-  try{
-    const content = [];
-    if (pendingImage){
-      content.push({ type:'image', source:{ type:'base64', media_type: pendingImage.media_type, data: pendingImage.data } });
-      content.push({ type:'text', text: text ? `Identifique este item do Palworld na foto (contexto adicional do usuário: "${text}") e siga as instruções do sistema.` : 'Identifique este item do Palworld na foto e siga as instruções do sistema.' });
-    } else {
-      content.push({ type:'text', text: text });
     }
 
-    const fetchPromise = fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({
-        model:'claude-sonnet-4-6',
-        max_tokens:1000,
-        system: SYSTEM_PROMPT,
-        messages:[{ role:'user', content }],
-        tools:[{ type:'web_search_20250305', name:'web_search' }]
-      })
+    // Build drop index from pals.json
+    pals.forEach(pal => {
+      if (!pal.item_drops || pal.item_drops.length === 0) return;
+      const element = (pal.elements && pal.elements[0]) || 'Não elemental';
+      const tier = rarityTier(pal.rarity || 0);
+      pal.item_drops.forEach(drop => {
+        let displayName = devToItem[drop.item_name] || drop.item_name;
+        if (!displayName || displayName === 'pt-BR_Text') displayName = drop.item_name;
+        if (!dropIndex[displayName]) dropIndex[displayName] = [];
+        dropIndex[displayName].push({
+          palName: pal.pal_name,
+          palDevName: pal.pal_dev_name,
+          element,
+          rarityTier: tier,
+          min: drop.min_drop,
+          max: drop.max_drop,
+          rate: drop.drop_rate
+        });
+      });
     });
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('TIMEOUT')), 45000);
-    });
 
-    const response = await Promise.race([fetchPromise, timeoutPromise]);
-    const data = await response.json();
-    const textBlocks = (data.content || []).filter(b => b.type === 'text');
-    if (textBlocks.length === 0){
-      throw new Error('Sem resposta de texto.');
-    }
-    const finalText = textBlocks[textBlocks.length - 1].text.trim();
-    const cleaned = finalText.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
+    droppableItemNames = Object.keys(dropIndex).sort((a,b) => a.localeCompare(b, 'pt-BR'));
 
-    let parsed;
-    try{
-      parsed = JSON.parse(cleaned);
-    }catch(e){
-      renderRaw(finalText);
-      setLoading(false);
-      return;
-    }
+    // Full item universe (for "existe mas não é drop" detection)
+    Object.keys(mappings.item_to_dev_name || {}).forEach(name => allItemNamesSet.add(name));
+    droppableItemNames.forEach(name => allItemNamesSet.add(name));
 
-    renderResults(parsed, false);
-
-    const keyToSave = normalizeKey(parsed.query || text || 'item');
-    try{ await window.storage.set(keyToSave, JSON.stringify(parsed), false); }catch(e){ /* storage best-effort */ }
-    loadHistory();
+    datasetReady = true;
+    onDatasetReady();
 
   }catch(err){
-    const isTimeout = err.message === 'TIMEOUT';
-    const msg = isTimeout
-      ? 'A busca demorou demais (mais de 45s). A pesquisa pode ainda estar rodando nos bastidores — tenta de novo em alguns segundos, ou simplifique o nome do item.'
-      : `Falha na varredura: ${err.message || 'erro desconhecido'}. Tente novamente.`;
-    output.innerHTML = `<div class="error">${msg}</div>`;
-  } finally {
-    setLoading(false);
-    pendingImage = null;
-    photoPreview.innerHTML = '';
-    photoInput.value = '';
+    onDatasetError(err);
   }
 }
 
-function setLoading(isLoading){
-  searchBtn.disabled = isLoading;
-  terminal.classList.toggle('scanning', isLoading);
-  if (isLoading){
-    output.innerHTML = `<div class="loading">Escaneando palworld.gg... (geralmente 10-20s, pode levar até 45s)</div>`;
+function onDatasetReady(){
+  statusDot.classList.remove('dot-off');
+  statusText.textContent = 'PRONTO · ' + droppableItemNames.length + ' ITENS COM DROP CONHECIDO';
+  terminal.classList.remove('scanning');
+  statusLine.textContent = 'Dados carregados direto do GitHub (comunidade blaynem/paldex + tylercamp/palcalc). Busque um item abaixo.';
+  itemInput.disabled = false;
+  itemInput.placeholder = 'ex: Lã, Couro, Chifre, Fibra de Carbono...';
+  searchBtn.disabled = false;
+  itemInput.focus();
+  footerNote.innerHTML = 'Dados extraídos direto dos arquivos do jogo por projetos open source, sem chave de API. ' +
+    'Aviso honesto: a base de itens/drops (blaynem/paldex) não é atualizada desde o início de 2024 — itens bem recentes ' +
+    '(ex: da atualização Feybreak) podem não aparecer aqui ainda. Se não encontrar, ' +
+    '<a href="' + PALWORLD_GG_SEARCH + '" target="_blank" rel="noopener">busque direto no palworld.gg</a>.';
+  renderHistory();
+}
+
+function onDatasetError(err){
+  terminal.classList.remove('scanning');
+  statusDot.classList.add('dot-off');
+  statusText.textContent = 'FALHA AO CARREGAR DADOS';
+  statusLine.innerHTML = 'Não consegui baixar a base de dados do GitHub (' + escapeHtml(err.message || 'erro desconhecido') +
+    '). Verifique sua conexão e <button class="btn-ghost" id="retryBtn" style="padding:2px 8px;font-size:11px;">tente de novo</button>.';
+  const retryBtn = document.getElementById('retryBtn');
+  if (retryBtn) retryBtn.addEventListener('click', () => location.reload());
+  footerNote.innerHTML = 'Enquanto isso, você pode consultar direto em <a href="https://palworld.gg" target="_blank" rel="noopener">palworld.gg</a>.';
+}
+
+loadDataset();
+
+// --- Autocomplete ---
+let activeSuggestIndex = -1;
+
+itemInput.addEventListener('input', () => {
+  const q = normalize(itemInput.value);
+  activeSuggestIndex = -1;
+  if (!q){ closeSuggestions(); return; }
+  const matches = droppableItemNames.filter(name => normalize(name).includes(q)).slice(0, 8);
+  renderSuggestions(matches);
+});
+
+itemInput.addEventListener('keydown', (e) => {
+  const items = suggestBox.querySelectorAll('.suggest-item');
+  if (e.key === 'ArrowDown' && items.length){
+    e.preventDefault();
+    activeSuggestIndex = Math.min(activeSuggestIndex + 1, items.length - 1);
+    updateActiveSuggestion(items);
+  } else if (e.key === 'ArrowUp' && items.length){
+    e.preventDefault();
+    activeSuggestIndex = Math.max(activeSuggestIndex - 1, 0);
+    updateActiveSuggestion(items);
+  } else if (e.key === 'Enter'){
+    if (activeSuggestIndex >= 0 && items[activeSuggestIndex]){
+      itemInput.value = items[activeSuggestIndex].textContent;
+    }
+    closeSuggestions();
+    runScan(itemInput.value);
+  } else if (e.key === 'Escape'){
+    closeSuggestions();
   }
+});
+
+document.addEventListener('click', (e) => {
+  if (!suggestBox.contains(e.target) && e.target !== itemInput) closeSuggestions();
+});
+
+function renderSuggestions(matches){
+  if (matches.length === 0){ closeSuggestions(); return; }
+  suggestBox.innerHTML = matches.map(name => `<div class="suggest-item">${escapeHtml(name)}</div>`).join('');
+  suggestBox.classList.add('open');
+  suggestBox.querySelectorAll('.suggest-item').forEach(el => {
+    el.addEventListener('click', () => {
+      itemInput.value = el.textContent;
+      closeSuggestions();
+      runScan(itemInput.value);
+    });
+  });
+}
+function updateActiveSuggestion(items){
+  items.forEach((el, i) => el.classList.toggle('active', i === activeSuggestIndex));
+  if (items[activeSuggestIndex]) items[activeSuggestIndex].scrollIntoView({block:'nearest'});
+}
+function closeSuggestions(){
+  suggestBox.classList.remove('open');
+  suggestBox.innerHTML = '';
+  activeSuggestIndex = -1;
 }
 
-function renderRaw(text){
-  output.innerHTML = `
-    <div class="results-head"><h2>Resposta bruta</h2></div>
-    <div class="source-note">Não consegui estruturar essa resposta em cards. Aqui está o texto que veio da busca:</div>
-    <div class="raw-fallback"></div>
-  `;
-  output.querySelector('.raw-fallback').textContent = text;
-}
+searchBtn.addEventListener('click', () => runScan(itemInput.value));
 
-function renderResults(data, fromCache){
-  if (!data.pals || data.pals.length === 0){
-    output.innerHTML = `
-      <div class="results-head">
-        <h2>${escapeHtml(data.query || 'Item')}</h2>
-        ${fromCache ? '<span class="meta-note">resultado salvo</span>' : ''}
-      </div>
-      <div class="empty">Nenhum Pal encontrado dropando esse item — pode ser um item só craftável, comprado, ou de coleta (minério, planta, etc). ${escapeHtml(data.source_note || '')}</div>
-    `;
+// --- Search + render ---
+function runScan(rawQuery){
+  if (!datasetReady) return;
+  currentRenderId++;
+  const query = (rawQuery || '').trim();
+  if (!query){
+    output.innerHTML = `<div class="error">Digite um item antes de escanear.</div>`;
     return;
   }
+  closeSuggestions();
+  const nq = normalize(query);
+
+  // 1. exact match
+  let matchedName = droppableItemNames.find(name => normalize(name) === nq);
+
+  // 2. substring match (either direction)
+  if (!matchedName){
+    const candidates = droppableItemNames.filter(name => normalize(name).includes(nq) || nq.includes(normalize(name)));
+    if (candidates.length === 1) matchedName = candidates[0];
+    else if (candidates.length > 1){
+      renderMultipleMatches(query, candidates);
+      saveHistory(query);
+      return;
+    }
+  }
+
+  if (matchedName){
+    renderResults(matchedName, dropIndex[matchedName]);
+    saveHistory(matchedName);
+    return;
+  }
+
+  // 3. exists in full item universe but has no droppers (craftable/bought/gathered only)
+  const existsButNoDrop = [...allItemNamesSet].find(name => normalize(name) === nq);
+  if (existsButNoDrop){
+    renderNoDrops(existsButNoDrop);
+    saveHistory(query);
+    return;
+  }
+
+  // 4. nothing found — suggest closest + manual fallback
+  renderNotFound(query);
+  saveHistory(query);
+}
+
+function renderMultipleMatches(query, candidates){
+  let html = `
+    <div class="results-head"><h2>Vários itens encontrados</h2></div>
+    <div class="source-note">Sua busca por "${escapeHtml(query)}" bateu com mais de um item. Escolha um:</div>
+  `;
+  candidates.slice(0, 12).forEach(name => {
+    html += `<div class="chip" style="display:inline-block;margin:4px 6px 4px 0;" data-name="${escapeHtml(name)}">${escapeHtml(name)}</div>`;
+  });
+  output.innerHTML = html;
+  output.querySelectorAll('.chip').forEach(el => {
+    el.addEventListener('click', () => {
+      itemInput.value = el.dataset.name;
+      runScan(el.dataset.name);
+    });
+  });
+}
+
+function renderNoDrops(itemName){
+  output.innerHTML = `
+    <div class="results-head"><h2>${escapeHtml(itemName)}</h2></div>
+    <div class="empty">Esse item existe, mas nenhum Pal dropa ele — provavelmente é craftável, comprado com mercador, ou coletado (minério, planta, baú). Não é um drop de abate.</div>
+  `;
+}
+
+function renderNotFound(query){
+  const nq = normalize(query);
+  const scored = droppableItemNames
+    .map(name => ({ name, score: similarityScore(nq, normalize(name)) }))
+    .filter(x => x.score > 0)
+    .sort((a,b) => b.score - a.score)
+    .slice(0, 5);
+
+  let html = `
+    <div class="results-head"><h2>${escapeHtml(query)}</h2></div>
+    <div class="empty">
+      Não achei esse item na base local — pode ser um nome digitado diferente, ou algo bem recente que a base ainda não tem (ver aviso no rodapé).
+      <br><br>
+      <a href="${PALWORLD_GG_SEARCH}${encodeURIComponent(query)}" target="_blank" rel="noopener" style="color:var(--brass-bright);">Buscar "${escapeHtml(query)}" direto no palworld.gg →</a>
+    </div>
+  `;
+  if (scored.length){
+    html += `<div class="source-note">Você quis dizer:</div>`;
+    scored.forEach(s => {
+      html += `<div class="chip" style="display:inline-block;margin:4px 6px 4px 0;" data-name="${escapeHtml(s.name)}">${escapeHtml(s.name)}</div>`;
+    });
+  }
+  output.innerHTML = html;
+  output.querySelectorAll('.chip').forEach(el => {
+    el.addEventListener('click', () => {
+      itemInput.value = el.dataset.name;
+      runScan(el.dataset.name);
+    });
+  });
+}
+
+function similarityScore(a, b){
+  // cheap token/substring overlap score, not a full edit-distance — good enough for suggestions
+  if (b.includes(a) || a.includes(b)) return 10 + Math.min(a.length, b.length);
+  const aTokens = a.split(/\s+/).filter(t => t.length > 2);
+  let score = 0;
+  aTokens.forEach(t => { if (b.includes(t)) score += t.length; });
+  return score;
+}
+
+const mapLocationCache = {};
+async function fetchSpawnInfo(palDevName){
+  if (mapLocationCache[palDevName]) return mapLocationCache[palDevName];
+  try{
+    const data = await fetchJson(PALDEX_MAPLOC_BASE + encodeURIComponent(palDevName) + '.json');
+    const day = (data.dayTimeLocations && data.dayTimeLocations.locations) || [];
+    const night = (data.nightTimeLocations && data.nightTimeLocations.locations) || [];
+    let when;
+    if (day.length && night.length) when = 'dia e à noite';
+    else if (night.length) when = 'só à noite';
+    else if (day.length) when = 'só de dia';
+    else when = null;
+    const total = day.length + night.length;
+    const info = when ? { when, total } : null;
+    mapLocationCache[palDevName] = info;
+    return info;
+  }catch(e){
+    mapLocationCache[palDevName] = null;
+    return null;
+  }
+}
+
+let currentRenderId = 0;
+function renderResults(itemName, drops){
+  const renderId = ++currentRenderId;
+  // sort: 100% rate first, then by rarity (common first = easier to get)
+  const rarityRank = r => RARITY_ORDER.indexOf(r);
+  const sorted = [...drops].sort((a,b) => (b.rate - a.rate) || (rarityRank(a.rarityTier) - rarityRank(b.rarityTier)));
 
   let html = `
     <div class="results-head">
-      <h2>${escapeHtml(data.query)}</h2>
-      <div>
-        ${fromCache ? '<span class="meta-note">resultado salvo — </span><button class="btn-ghost" id="refreshBtn" style="padding:4px 10px;font-size:11px;">atualizar agora</button>' : '<span class="meta-note">busca ao vivo</span>'}
-      </div>
+      <h2>${escapeHtml(itemName)}</h2>
+      <span class="meta-note">${sorted.length} Pal${sorted.length > 1 ? 's' : ''} encontrado${sorted.length > 1 ? 's' : ''}</span>
     </div>
   `;
-  if (data.source_note){
-    html += `<div class="source-note">${escapeHtml(data.source_note)}</div>`;
-  }
 
-  data.pals.forEach(p => {
-    const elColor = ELEMENT_COLORS[p.element] || '#9aa0a6';
-    const rarColor = RARITY_COLORS[p.rarity] || 'var(--rar-comum)';
+  sorted.forEach((d, i) => {
+    const elColor = ELEMENT_COLORS[d.element] || '#9aa0a6';
+    const rarColor = RARITY_COLORS[d.rarityTier] || 'var(--rar-comum)';
+    const qty = d.min === d.max ? String(d.min) : `${d.min}-${d.max}`;
+    const level = levelRanges[d.palDevName];
+    const levelText = level && (level.min || level.max) ? `Nível ${level.min}–${level.max}` : null;
+
     html += `
-      <div class="card" style="border-left-color:${elColor}">
+      <div class="card" style="border-left-color:${elColor}" data-pal-dev="${escapeHtml(d.palDevName)}" data-idx="${i}">
         <div class="card-top">
-          <div class="pal-name">${escapeHtml(p.name || '')}</div>
+          <div class="pal-name">${escapeHtml(d.palName)}</div>
           <div class="badges">
-            <span class="badge" style="color:${elColor}">${escapeHtml(p.element || '?')}</span>
-            <span class="badge" style="color:${rarColor}">${escapeHtml(p.rarity || '?')}</span>
+            <span class="badge" style="color:${elColor}">${escapeHtml(d.element)}</span>
+            <span class="badge" style="color:${rarColor}">${escapeHtml(d.rarityTier)}</span>
           </div>
         </div>
         <div class="stats-row">
-          <div><span class="stat-label">Quantidade</span><span class="stat-value"${isUnknown(p.quantity) ? ' style="color:var(--text-dim);font-style:italic;font-weight:400;"' : ''}>${escapeHtml(p.quantity || '—')}</span></div>
-          <div><span class="stat-label">Chance</span><span class="stat-value"${isUnknown(p.chance) ? ' style="color:var(--text-dim);font-style:italic;font-weight:400;"' : ''}>${escapeHtml(p.chance || '—')}</span></div>
+          <div><span class="stat-label">Quantidade</span><span class="stat-value">${escapeHtml(qty)}</span></div>
+          <div><span class="stat-label">Chance</span><span class="stat-value">${escapeHtml(String(d.rate))}%</span></div>
         </div>
-        <div class="how-to"><b>Como conseguir:</b> ${escapeHtml(p.how_to_obtain || 'sem detalhes.')}</div>
-        ${p.notes ? `<div class="note-line">${escapeHtml(p.notes)}</div>` : ''}
+        <div class="how-to">
+          <b>Como conseguir:</b>
+          ${levelText ? escapeHtml(levelText) + ' · ' : ''}
+          <span class="spawn-slot spawn-loading">consultando pontos de spawn...</span>
+        </div>
       </div>
     `;
   });
 
   output.innerHTML = html;
 
-  const refreshBtn = document.getElementById('refreshBtn');
-  if (refreshBtn){
-    refreshBtn.addEventListener('click', () => {
-      itemInput.value = data.query;
-      runScan(true);
+  // progressively fill in spawn info per card
+  sorted.forEach((d, i) => {
+    fetchSpawnInfo(d.palDevName).then(info => {
+      if (renderId !== currentRenderId) return;
+      const card = output.querySelector(`.card[data-idx="${i}"]`);
+      if (!card) return;
+      const slot = card.querySelector('.spawn-slot');
+      if (!slot) return;
+      if (info){
+        slot.textContent = `Aparece ${info.when} (${info.total} pontos conhecidos no mapa)`;
+      } else {
+        slot.textContent = 'Sem dados de spawn no mapa (pode ser obtido só por raid, expedição ou baú)';
+      }
+      slot.classList.remove('spawn-loading');
     });
-  }
+  });
 }
 
-function isUnknown(val){
-  if (!val) return true;
-  const v = String(val).toLowerCase();
-  return v.includes('não informado') || v.includes('nao informado') || v.includes('desconhec');
+// --- History (small, local only) ---
+async function saveHistory(name){
+  try{
+    let hist = [];
+    try{
+      const stored = await window.storage.get('history', false);
+      if (stored && stored.value) hist = JSON.parse(stored.value);
+    }catch(e){ hist = []; }
+    hist = hist.filter(h => h !== name);
+    hist.unshift(name);
+    hist = hist.slice(0, 12);
+    await window.storage.set('history', JSON.stringify(hist), false);
+    renderHistory(hist);
+  }catch(e){ /* storage best-effort, ignore */ }
+}
+
+async function renderHistory(preloaded){
+  try{
+    let hist = preloaded;
+    if (!hist){
+      const stored = await window.storage.get('history', false);
+      hist = stored && stored.value ? JSON.parse(stored.value) : [];
+    }
+    historyRow.innerHTML = '';
+    hist.forEach(name => {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.textContent = name;
+      chip.addEventListener('click', () => {
+        itemInput.value = name;
+        runScan(name);
+      });
+      historyRow.appendChild(chip);
+    });
+  }catch(e){ /* no history yet, ignore */ }
 }
 
 function escapeHtml(str){
