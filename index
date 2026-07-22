@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scanner de Drops — Palworld</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#141a10;
+  --bg-alt:#1a2114;
+  --panel:#20281a;
+  --panel-alt:#283321;
+  --border:#3a4530;
+  --border-bright:#4c5a3d;
+  --tan:#e7dcc0;
+  --text-dim:#9aa48a;
+  --brass:#c98a3e;
+  --brass-bright:#e3a85c;
+  --rust:#8a4a2b;
+
+  --rar-comum:#9aa0a6;
+  --rar-incomum:#5fae5a;
+  --rar-raro:#4f8ff0;
+  --rar-epico:#a56bff;
+  --rar-lendario:#f0b429;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+
+body{
+  background:
+    radial-gradient(ellipse at top left, rgba(201,138,62,0.06), transparent 55%),
+    var(--bg);
+  color:var(--tan);
+  font-family:'IBM Plex Sans', sans-serif;
+  min-height:100vh;
+  padding:28px 16px 60px;
+}
+
+.wrap{max-width:720px;margin:0 auto;}
+
+/* ---------- Header ---------- */
+.header{
+  border:1px solid var(--border);
+  background:linear-gradient(180deg, var(--panel-alt), var(--panel));
+  border-radius:6px;
+  padding:18px 20px;
+  position:relative;
+  overflow:hidden;
+  margin-bottom:18px;
+}
+.header::before{
+  content:"";
+  position:absolute;
+  top:0;left:0;right:0;height:4px;
+  background:repeating-linear-gradient(135deg, var(--brass) 0 10px, var(--rust) 10px 20px);
+  opacity:0.55;
+}
+.eyebrow{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11px;
+  letter-spacing:0.12em;
+  color:var(--brass-bright);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:6px;
+}
+.dot{
+  width:7px;height:7px;border-radius:50%;
+  background:#6fd66f;
+  box-shadow:0 0 6px #6fd66f;
+  animation:pulse 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce){ .dot{animation:none;} }
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+h1{
+  font-family:'Oswald', sans-serif;
+  font-weight:700;
+  letter-spacing:0.02em;
+  text-transform:uppercase;
+  font-size:26px;
+  margin:0 0 4px;
+}
+.subtitle{color:var(--text-dim);font-size:13.5px;line-height:1.5;max-width:52ch;}
+
+/* ---------- Search terminal ---------- */
+.terminal{
+  border:1px solid var(--border);
+  background:var(--panel);
+  border-radius:6px;
+  padding:18px;
+  margin-bottom:18px;
+  position:relative;
+  overflow:hidden;
+}
+.terminal.scanning::after{
+  content:"";
+  position:absolute;
+  left:0;right:0;top:0;height:2px;
+  background:linear-gradient(90deg, transparent, var(--brass-bright), transparent);
+  animation:scanline 1.3s linear infinite;
+}
+@keyframes scanline{
+  0%{transform:translateY(0);}
+  100%{transform:translateY(220px);}
+}
+@media (prefers-reduced-motion: reduce){ .terminal.scanning::after{animation:none; opacity:0.4;} }
+
+.field-label{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  color:var(--text-dim);
+  margin-bottom:8px;
+}
+
+.search-row{display:flex;gap:8px;}
+input[type=text]{
+  flex:1;
+  background:var(--bg-alt);
+  border:1px solid var(--border);
+  color:var(--tan);
+  font-family:'IBM Plex Mono', monospace;
+  font-size:14px;
+  padding:11px 12px;
+  border-radius:4px;
+  outline:none;
+}
+input[type=text]:focus-visible{
+  border-color:var(--brass-bright);
+  box-shadow:0 0 0 2px rgba(227,168,92,0.25);
+}
+input[type=text]::placeholder{color:#6c765a;}
+
+button{
+  font-family:'IBM Plex Mono', monospace;
+  font-weight:600;
+  font-size:13px;
+  letter-spacing:0.02em;
+  border-radius:4px;
+  border:1px solid var(--border);
+  cursor:pointer;
+  padding:11px 16px;
+  transition:background 0.15s, border-color 0.15s, transform 0.05s;
+}
+button:active{transform:translateY(1px);}
+button:focus-visible{outline:2px solid var(--brass-bright);outline-offset:2px;}
+
+.btn-primary{
+  background:var(--brass);
+  border-color:var(--brass);
+  color:#1a1206;
+}
+.btn-primary:hover{background:var(--brass-bright);}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;}
+
+.btn-ghost{
+  background:transparent;
+  color:var(--tan);
+}
+.btn-ghost:hover{border-color:var(--border-bright); background:var(--panel-alt);}
+
+.divider-row{
+  display:flex;align-items:center;gap:10px;
+  margin:14px 0;color:var(--text-dim);
+  font-family:'IBM Plex Mono', monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;
+}
+.divider-row::before,.divider-row::after{content:"";flex:1;height:1px;background:var(--border);}
+
+.photo-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+#photoInput{display:none;}
+.photo-preview{
+  font-family:'IBM Plex Mono', monospace;font-size:12px;color:var(--text-dim);
+}
+.thumb{
+  width:38px;height:38px;object-fit:cover;border-radius:4px;border:1px solid var(--border);
+  vertical-align:middle;margin-right:8px;
+}
+
+/* ---------- History chips ---------- */
+.history{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;}
+.chip{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11.5px;
+  padding:5px 10px;
+  border:1px solid var(--border);
+  border-radius:20px;
+  background:var(--panel);
+  color:var(--text-dim);
+  cursor:pointer;
+}
+.chip:hover{border-color:var(--brass-bright);color:var(--tan);}
+
+/* ---------- Results ---------- */
+.results-head{
+  display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;
+  margin:6px 2px 12px;
+}
+.results-head h2{
+  font-family:'Oswald', sans-serif;text-transform:uppercase;font-size:16px;
+  letter-spacing:0.03em;margin:0;font-weight:600;
+}
+.meta-note{font-family:'IBM Plex Mono', monospace;font-size:11px;color:var(--text-dim);}
+
+.source-note{
+  font-size:13px;color:var(--text-dim);
+  border-left:2px solid var(--border);
+  padding-left:10px;margin:0 0 16px;line-height:1.5;
+}
+
+.card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-left-width:4px;
+  border-radius:5px;
+  padding:14px 16px;
+  margin-bottom:10px;
+}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+.pal-name{
+  font-family:'Oswald', sans-serif;font-size:17px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.01em;
+}
+.badges{display:flex;gap:6px;flex-wrap:wrap;}
+.badge{
+  font-family:'IBM Plex Mono', monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;
+  padding:2px 8px;border-radius:3px;border:1px solid currentColor;
+}
+.stats-row{
+  display:flex;gap:22px;margin-top:10px;font-family:'IBM Plex Mono', monospace;
+}
+.stat-label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;display:block;}
+.stat-value{font-size:15px;color:var(--brass-bright);font-weight:600;}
+.how-to{font-size:13.5px;line-height:1.5;margin-top:10px;color:var(--tan);}
+.how-to b{color:var(--brass-bright);font-weight:600;}
+.note-line{font-size:12px;color:var(--text-dim);margin-top:6px;font-style:italic;}
+
+.empty, .error, .loading{
+  text-align:center;color:var(--text-dim);font-size:13.5px;padding:30px 10px;
+}
+.error{color:#e08a6e;}
+.raw-fallback{
+  white-space:pre-wrap;font-family:'IBM Plex Mono', monospace;font-size:12px;
+  background:var(--bg-alt);border:1px solid var(--border);border-radius:4px;padding:12px;
+}
+
+.footer-note{
+  text-align:center;font-size:11.5px;color:var(--text-dim);margin-top:24px;
+  font-family:'IBM Plex Mono', monospace;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="eyebrow"><span class="dot"></span> BUSCA AO VIVO · PALWORLD.GG + WEB</div>
+    <h1>Scanner de Drops</h1>
+    <div class="subtitle">Digite o nome de um item ou mande uma foto. O scanner vasculha a web em tempo real pra achar quem dropa, quanto, com que chance — e como conseguir aquele Pal.</div>
+  </div>
+
+  <div class="terminal" id="terminal">
+    <div class="field-label">Nome do item</div>
+    <div class="search-row">
+      <input type="text" id="itemInput" placeholder="ex: Coralum Ore, Dog Coin, Couro..." autocomplete="off">
+      <button class="btn-primary" id="searchBtn">Escanear</button>
+    </div>
+
+    <div class="divider-row">ou</div>
+
+    <div class="field-label">Foto do item</div>
+    <div class="photo-row">
+      <button class="btn-ghost" id="photoBtn">📷 Enviar foto</button>
+      <input type="file" id="photoInput" accept="image/*">
+      <span class="photo-preview" id="photoPreview"></span>
+    </div>
+  </div>
+
+  <div class="history" id="historyRow"></div>
+
+  <div id="output"></div>
+
+  <div class="footer-note">Os dados vêm de buscas na web em tempo real (palworld.gg e fontes cruzadas) — nunca de uma base fixa. Sempre confira in-game se a taxa parecer estranha, patches mudam isso o tempo todo.</div>
+
+</div>
+
+<script>
+const ELEMENT_COLORS = {
+  'Fogo':'#e2572b','Água':'#3b82c4','Planta':'#4f9d4a','Elétrico':'#e8c94a',
+  'Gelo':'#7fd8e0','Terra':'#a9743b','Trevas':'#7a5ea8','Dragão':'#5a4fcf','Neutro':'#9aa0a6'
+};
+const RARITY_COLORS = {
+  'Comum':'var(--rar-comum)','Incomum':'var(--rar-incomum)','Raro':'var(--rar-raro)',
+  'Épico':'var(--rar-epico)','Lendário':'var(--rar-lendario)'
+};
+
+const SYSTEM_PROMPT = `Você é um assistente RÁPIDO e OBJETIVO de dados do jogo Palworld, integrado a um app de busca de drops de itens. Velocidade importa tanto quanto precisão — o usuário está esperando na tela.
+
+ESTRATÉGIA DE BUSCA (siga à risca, não pule etapas mas também não exceda):
+1. Primeira busca: sempre no formato "<nome do item> site:palworld.gg" (ou o nome traduzido/corrigido do item). A página do item no palworld.gg já lista todos os Pals que o dropam, com quantidade e taxa — geralmente ISSO SOZINHO já basta.
+2. Se a primeira busca já trouxe os Pals com quantidade e taxa, PARE de pesquisar e responda.
+3. Só faça uma segunda busca se a primeira não identificou o item ou não trouxe nenhum Pal associado. Nunca faça mais de 3 buscas no total, mesmo que os dados pareçam incompletos — responda com o que conseguiu.
+4. NÃO cruze múltiplos sites (paldb.cc, wiki.gg, game8, fextralife) por padrão — isso é lento. Só faça isso se a primeira busca não retornar nada útil.
+
+TAREFA: dado um nome de item (texto) ou uma imagem contendo um item do Palworld, determine:
+1. O nome canônico do item (normalize/traduza se o usuário escreveu em português, com erro de digitação, ou apelido).
+2. Quais Pals dropam esse item ao morrer/serem abatidos ou capturados, com quantidade e taxa de chance (%).
+3. Como conseguir/encontrar aquele Pal (região do mapa, faixa de nível — bem resumido).
+
+REGRAS:
+- Máximo de 5 Pals no resultado (os mais relevantes/comuns primeiro).
+- Se você não encontrar a quantidade ou a taxa exata na fonte, escreva literalmente "não informado" nesse campo — NUNCA invente ou chute um número, e não gaste uma busca extra só atrás disso.
+- Se o item não existir ou nenhum Pal dropar ele (item só craftável/comprado/coletado, por exemplo), retorne "pals" como lista vazia e explique em "source_note".
+- Seja telegráfico: "how_to_obtain" deve ter no máximo 12 palavras.
+- Responda em português do Brasil.
+- Sua ÚLTIMA mensagem de texto deve conter APENAS um JSON válido — sem markdown, sem crases, sem texto antes ou depois, sem comentários.
+
+FORMATO JSON EXATO:
+{
+  "query": "nome do item identificado",
+  "pals": [
+    {
+      "name": "Nome do Pal",
+      "element": "um de: Fogo, Água, Planta, Elétrico, Gelo, Terra, Trevas, Dragão, Neutro",
+      "rarity": "um de: Comum, Incomum, Raro, Épico, Lendário",
+      "quantity": "ex: 2-3, ou 'não informado'",
+      "chance": "ex: 100%, ou 'não informado'",
+      "how_to_obtain": "frase bem curta com região/nível",
+      "notes": "observação curta ou string vazia"
+    }
+  ],
+  "source_note": "frase curta sobre confiabilidade/fonte dos dados"
+}`;
+
+const terminal = document.getElementById('terminal');
+const output = document.getElementById('output');
+const itemInput = document.getElementById('itemInput');
+const searchBtn = document.getElementById('searchBtn');
+const photoBtn = document.getElementById('photoBtn');
+const photoInput = document.getElementById('photoInput');
+const photoPreview = document.getElementById('photoPreview');
+const historyRow = document.getElementById('historyRow');
+
+let pendingImage = null; // {media_type, data, previewUrl}
+
+photoBtn.addEventListener('click', () => photoInput.click());
+
+photoInput.addEventListener('change', async () => {
+  const file = photoInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = reader.result;
+    const base64Data = result.split(',')[1];
+    pendingImage = { media_type: file.type || 'image/jpeg', data: base64Data, previewUrl: result };
+    photoPreview.innerHTML = `<img class="thumb" src="${result}" alt="preview"> foto pronta — clique em Escanear`;
+  };
+  reader.readAsDataURL(file);
+});
+
+searchBtn.addEventListener('click', () => runScan());
+itemInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') runScan(); });
+
+function normalizeKey(text){
+  return 'scan:' + text.trim().toLowerCase().replace(/\s+/g,'_').slice(0,150);
+}
+
+async function loadHistory(){
+  try{
+    const res = await window.storage.list('scan:', false);
+    if (!res || !res.keys) return;
+    historyRow.innerHTML = '';
+    res.keys.slice(0,15).forEach(k => {
+      const label = k.replace('scan:','').replace(/_/g,' ');
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.textContent = label;
+      chip.addEventListener('click', async () => {
+        try{
+          const stored = await window.storage.get(k, false);
+          if (stored && stored.value){
+            const data = JSON.parse(stored.value);
+            renderResults(data, true);
+            itemInput.value = data.query || label;
+          }
+        }catch(e){ /* key vanished, ignore */ }
+      });
+      historyRow.appendChild(chip);
+    });
+  }catch(e){ /* storage not available yet, ignore silently */ }
+}
+loadHistory();
+
+async function runScan(forceRefresh=false){
+  const text = itemInput.value.trim();
+  if (!text && !pendingImage){
+    output.innerHTML = `<div class="error">Digite um item ou anexe uma foto antes de escanear.</div>`;
+    return;
+  }
+
+  const cacheKey = text ? normalizeKey(text) : null;
+  if (cacheKey && !forceRefresh && !pendingImage){
+    try{
+      const stored = await window.storage.get(cacheKey, false);
+      if (stored && stored.value){
+        const data = JSON.parse(stored.value);
+        renderResults(data, true);
+        return;
+      }
+    }catch(e){ /* no cache yet, continue to live fetch */ }
+  }
+
+  setLoading(true);
+  try{
+    const content = [];
+    if (pendingImage){
+      content.push({ type:'image', source:{ type:'base64', media_type: pendingImage.media_type, data: pendingImage.data } });
+      content.push({ type:'text', text: text ? `Identifique este item do Palworld na foto (contexto adicional do usuário: "${text}") e siga as instruções do sistema.` : 'Identifique este item do Palworld na foto e siga as instruções do sistema.' });
+    } else {
+      content.push({ type:'text', text: text });
+    }
+
+    const fetchPromise = fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:1000,
+        system: SYSTEM_PROMPT,
+        messages:[{ role:'user', content }],
+        tools:[{ type:'web_search_20250305', name:'web_search' }]
+      })
+    });
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('TIMEOUT')), 45000);
+    });
+
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+    const data = await response.json();
+    const textBlocks = (data.content || []).filter(b => b.type === 'text');
+    if (textBlocks.length === 0){
+      throw new Error('Sem resposta de texto.');
+    }
+    const finalText = textBlocks[textBlocks.length - 1].text.trim();
+    const cleaned = finalText.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
+
+    let parsed;
+    try{
+      parsed = JSON.parse(cleaned);
+    }catch(e){
+      renderRaw(finalText);
+      setLoading(false);
+      return;
+    }
+
+    renderResults(parsed, false);
+
+    const keyToSave = normalizeKey(parsed.query || text || 'item');
+    try{ await window.storage.set(keyToSave, JSON.stringify(parsed), false); }catch(e){ /* storage best-effort */ }
+    loadHistory();
+
+  }catch(err){
+    const isTimeout = err.message === 'TIMEOUT';
+    const msg = isTimeout
+      ? 'A busca demorou demais (mais de 45s). A pesquisa pode ainda estar rodando nos bastidores — tenta de novo em alguns segundos, ou simplifique o nome do item.'
+      : `Falha na varredura: ${err.message || 'erro desconhecido'}. Tente novamente.`;
+    output.innerHTML = `<div class="error">${msg}</div>`;
+  } finally {
+    setLoading(false);
+    pendingImage = null;
+    photoPreview.innerHTML = '';
+    photoInput.value = '';
+  }
+}
+
+function setLoading(isLoading){
+  searchBtn.disabled = isLoading;
+  terminal.classList.toggle('scanning', isLoading);
+  if (isLoading){
+    output.innerHTML = `<div class="loading">Escaneando palworld.gg... (geralmente 10-20s, pode levar até 45s)</div>`;
+  }
+}
+
+function renderRaw(text){
+  output.innerHTML = `
+    <div class="results-head"><h2>Resposta bruta</h2></div>
+    <div class="source-note">Não consegui estruturar essa resposta em cards. Aqui está o texto que veio da busca:</div>
+    <div class="raw-fallback"></div>
+  `;
+  output.querySelector('.raw-fallback').textContent = text;
+}
+
+function renderResults(data, fromCache){
+  if (!data.pals || data.pals.length === 0){
+    output.innerHTML = `
+      <div class="results-head">
+        <h2>${escapeHtml(data.query || 'Item')}</h2>
+        ${fromCache ? '<span class="meta-note">resultado salvo</span>' : ''}
+      </div>
+      <div class="empty">Nenhum Pal encontrado dropando esse item — pode ser um item só craftável, comprado, ou de coleta (minério, planta, etc). ${escapeHtml(data.source_note || '')}</div>
+    `;
+    return;
+  }
+
+  let html = `
+    <div class="results-head">
+      <h2>${escapeHtml(data.query)}</h2>
+      <div>
+        ${fromCache ? '<span class="meta-note">resultado salvo — </span><button class="btn-ghost" id="refreshBtn" style="padding:4px 10px;font-size:11px;">atualizar agora</button>' : '<span class="meta-note">busca ao vivo</span>'}
+      </div>
+    </div>
+  `;
+  if (data.source_note){
+    html += `<div class="source-note">${escapeHtml(data.source_note)}</div>`;
+  }
+
+  data.pals.forEach(p => {
+    const elColor = ELEMENT_COLORS[p.element] || '#9aa0a6';
+    const rarColor = RARITY_COLORS[p.rarity] || 'var(--rar-comum)';
+    html += `
+      <div class="card" style="border-left-color:${elColor}">
+        <div class="card-top">
+          <div class="pal-name">${escapeHtml(p.name || '')}</div>
+          <div class="badges">
+            <span class="badge" style="color:${elColor}">${escapeHtml(p.element || '?')}</span>
+            <span class="badge" style="color:${rarColor}">${escapeHtml(p.rarity || '?')}</span>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div><span class="stat-label">Quantidade</span><span class="stat-value"${isUnknown(p.quantity) ? ' style="color:var(--text-dim);font-style:italic;font-weight:400;"' : ''}>${escapeHtml(p.quantity || '—')}</span></div>
+          <div><span class="stat-label">Chance</span><span class="stat-value"${isUnknown(p.chance) ? ' style="color:var(--text-dim);font-style:italic;font-weight:400;"' : ''}>${escapeHtml(p.chance || '—')}</span></div>
+        </div>
+        <div class="how-to"><b>Como conseguir:</b> ${escapeHtml(p.how_to_obtain || 'sem detalhes.')}</div>
+        ${p.notes ? `<div class="note-line">${escapeHtml(p.notes)}</div>` : ''}
+      </div>
+    `;
+  });
+
+  output.innerHTML = html;
+
+  const refreshBtn = document.getElementById('refreshBtn');
+  if (refreshBtn){
+    refreshBtn.addEventListener('click', () => {
+      itemInput.value = data.query;
+      runScan(true);
+    });
+  }
+}
+
+function isUnknown(val){
+  if (!val) return true;
+  const v = String(val).toLowerCase();
+  return v.includes('não informado') || v.includes('nao informado') || v.includes('desconhec');
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
