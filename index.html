@@ -317,6 +317,37 @@ const RARITY_COLORS = {
   'Épico':'var(--rar-epico)','Lendário':'var(--rar-lendario)'
 };
 
+// Hand-checked supplement for recent (Feybreak/1.0) items the open dataset doesn't have yet.
+// Researched directly from palworld.gg on 2026-07-22. Ask Claude to add more as you find gaps.
+const MANUAL_ADDITIONS = [
+  {
+    displayName: 'Coralum Ore (Minério de Marganês)',
+    aliases: ['coralum ore', 'minerio de marganes', 'marganes', 'marganês', 'coralum'],
+    pals: [
+      { palName: 'Whalaska', element: 'Água', rarityTier: 'Raro', min: 2, max: 3, rate: 100,
+        howTo: 'Pescável de dia na Isle of the Glacial Core e no litoral de Feybreak (Frozen Coral Hill).' },
+      { palName: 'Whalaska Ignis', element: 'Fogo', rarityTier: 'Épico', min: 2, max: 3, rate: 100,
+        howTo: 'Pescável de dia no litoral de Feybreak e no Wildlife Sanctuary Nº3.' }
+    ]
+  },
+  {
+    displayName: 'Dog Coin (Moeda Cachorro)',
+    aliases: ['dog coin', 'moeda cachorro', 'moeda de cachorro'],
+    pals: [
+      { palName: 'Mimog', element: 'Não elemental', rarityTier: 'Raro', min: 14, max: 21, rate: 100,
+        howTo: 'Se disfarça de baú de tesouro; foge a 2000 de velocidade ao ser atacado — cerque antes de bater. Só dropa a moeda se abatido/capturado selvagem, nunca ao açougueirar um já domesticado.' }
+    ]
+  },
+  {
+    displayName: 'Soralite',
+    aliases: ['soralite', 'solarite'],
+    pals: [
+      { palName: 'Pierdon Cryst', element: 'Gelo', rarityTier: 'Raro', min: 4, max: 5, rate: 100,
+        howTo: 'Spawna nos níveis 68–69, na ilha principal e na região de Sunreach.' }
+    ]
+  }
+];
+
 function rarityTier(r){
   if (r >= 20) return 'Lendário';
   if (r >= 7) return 'Épico';
@@ -346,7 +377,28 @@ let dropIndex = {};          // itemDisplayName (pt-BR) -> [{palName, palDevName
 let allItemNamesSet = new Set(); // every known item display name (droppable or not) for "did you mean"
 let droppableItemNames = []; // sorted list of item display names that DO have droppers (for autocomplete)
 let levelRanges = {};        // palDevName -> {min, max}
+let aliasMap = {};           // normalized alias -> canonical display name (manual additions)
 let datasetReady = false;
+
+function applyManualAdditions(){
+  MANUAL_ADDITIONS.forEach(entry => {
+    dropIndex[entry.displayName] = entry.pals.map(p => ({
+      palName: p.palName,
+      palDevName: null,
+      element: p.element,
+      rarityTier: p.rarityTier,
+      min: p.min,
+      max: p.max,
+      rate: p.rate,
+      manualHowTo: p.howTo
+    }));
+    allItemNamesSet.add(entry.displayName);
+    if (!droppableItemNames.includes(entry.displayName)) droppableItemNames.push(entry.displayName);
+    entry.aliases.forEach(a => { aliasMap[normalize(a)] = entry.displayName; });
+    aliasMap[normalize(entry.displayName)] = entry.displayName;
+  });
+  droppableItemNames.sort((a,b) => a.localeCompare(b, 'pt-BR'));
+}
 
 async function fetchJson(url){
   const res = await fetch(url);
@@ -395,6 +447,7 @@ async function loadDataset(){
     });
 
     droppableItemNames = Object.keys(dropIndex).sort((a,b) => a.localeCompare(b, 'pt-BR'));
+    applyManualAdditions();
 
     // Full item universe (for "existe mas não é drop" detection)
     Object.keys(mappings.item_to_dev_name || {}).forEach(name => allItemNamesSet.add(name));
@@ -412,15 +465,16 @@ function onDatasetReady(){
   statusDot.classList.remove('dot-off');
   statusText.textContent = 'PRONTO · ' + droppableItemNames.length + ' ITENS COM DROP CONHECIDO';
   terminal.classList.remove('scanning');
-  statusLine.textContent = 'Dados carregados direto do GitHub (comunidade blaynem/paldex + tylercamp/palcalc). Busque um item abaixo.';
+  statusLine.textContent = 'Dados carregados direto do GitHub, mais ' + MANUAL_ADDITIONS.length + ' itens recentes conferidos manualmente hoje. Busque um item abaixo.';
   itemInput.disabled = false;
-  itemInput.placeholder = 'ex: Lã, Couro, Chifre, Fibra de Carbono...';
+  itemInput.placeholder = 'ex: Lã, Couro, Chifre, Coralum Ore, Dog Coin...';
   searchBtn.disabled = false;
   itemInput.focus();
-  footerNote.innerHTML = 'Dados extraídos direto dos arquivos do jogo por projetos open source, sem chave de API. ' +
-    'Aviso honesto: a base de itens/drops (blaynem/paldex) não é atualizada desde o início de 2024 — itens bem recentes ' +
-    '(ex: da atualização Feybreak) podem não aparecer aqui ainda. Se não encontrar, ' +
-    '<a href="' + PALWORLD_GG_SEARCH + '" target="_blank" rel="noopener">busque direto no palworld.gg</a>.';
+  footerNote.innerHTML = 'Base principal (blaynem/paldex) extraída dos arquivos do jogo, mas parada desde início de 2024 — ' +
+    'itens muito recentes podem faltar nela. Pra cobrir isso, os itens marcados <b>"verificado hoje"</b> ' +
+    '(ex: Coralum Ore, Dog Coin, Soralite) foram checados manualmente por mim direto no palworld.gg em 22/07/2026. ' +
+    'Se um item que você procura não aparecer, me avisa aqui na conversa e eu pesquiso e adiciono nessa lista. ' +
+    'Plano B pra qualquer busca: <a href="' + PALWORLD_GG_SEARCH + '" target="_blank" rel="noopener">palworld.gg</a>.';
   renderHistory();
 }
 
@@ -508,6 +562,14 @@ function runScan(rawQuery){
   }
   closeSuggestions();
   const nq = normalize(query);
+
+  // 0. manual-addition aliases (recent items the base dataset is missing) — highest priority
+  if (aliasMap[nq]){
+    const canonical = aliasMap[nq];
+    renderResults(canonical, dropIndex[canonical]);
+    saveHistory(canonical);
+    return;
+  }
 
   // 1. exact match
   let matchedName = droppableItemNames.find(name => normalize(name) === nq);
@@ -648,14 +710,16 @@ function renderResults(itemName, drops){
     const qty = d.min === d.max ? String(d.min) : `${d.min}-${d.max}`;
     const level = levelRanges[d.palDevName];
     const levelText = level && (level.min || level.max) ? `Nível ${level.min}–${level.max}` : null;
+    const isManual = !d.palDevName;
 
     html += `
-      <div class="card" style="border-left-color:${elColor}" data-pal-dev="${escapeHtml(d.palDevName)}" data-idx="${i}">
+      <div class="card" style="border-left-color:${elColor}" data-pal-dev="${escapeHtml(d.palDevName || '')}" data-idx="${i}">
         <div class="card-top">
           <div class="pal-name">${escapeHtml(d.palName)}</div>
           <div class="badges">
             <span class="badge" style="color:${elColor}">${escapeHtml(d.element)}</span>
             <span class="badge" style="color:${rarColor}">${escapeHtml(d.rarityTier)}</span>
+            ${isManual ? '<span class="badge" style="color:var(--brass-bright);">verificado hoje</span>' : ''}
           </div>
         </div>
         <div class="stats-row">
@@ -665,7 +729,9 @@ function renderResults(itemName, drops){
         <div class="how-to">
           <b>Como conseguir:</b>
           ${levelText ? escapeHtml(levelText) + ' · ' : ''}
-          <span class="spawn-slot spawn-loading">consultando pontos de spawn...</span>
+          ${isManual
+            ? escapeHtml(d.manualHowTo || '')
+            : '<span class="spawn-slot spawn-loading">consultando pontos de spawn...</span>'}
         </div>
       </div>
     `;
@@ -673,8 +739,9 @@ function renderResults(itemName, drops){
 
   output.innerHTML = html;
 
-  // progressively fill in spawn info per card
+  // progressively fill in spawn info per card (only for pals backed by the live dataset, not manual entries)
   sorted.forEach((d, i) => {
+    if (!d.palDevName) return;
     fetchSpawnInfo(d.palDevName).then(info => {
       if (renderId !== currentRenderId) return;
       const card = output.querySelector(`.card[data-idx="${i}"]`);
